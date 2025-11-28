@@ -4,9 +4,9 @@ import './header.css';
 
 const NavBarLinks = [
     { key: 'home', path: '/', label: 'Home' },
-    { key: 'about', path: '/about/', label: 'About Us' },
-    { key: 'privacy-policy', path: '/privacy-policy/', label: 'Privacy Policy' },
-    { key: 'contact', path: '/contact/', label: 'Contact Us' },
+    // { key: 'about', path: '/about/', label: 'About Us' },
+    // { key: 'privacy-policy', path: '/privacy-policy/', label: 'Privacy Policy' },
+    // { key: 'contact', path: '/contact/', label: 'Contact Us' },
 ];
 
 const NavbarLink = ({ item }) => (
@@ -19,7 +19,7 @@ const Header = () => {
     return (
         <div className="shadow-sm p-6 items-center px-4 bg-white flex flex-col md:flex-row justify-center">
             <div className="flex items-center space-x-4">
-                <span className="text-xl text-stone-700">Videoglancer</span>
+                <span className="text-xl text-stone-700">Ytglancer</span>
             </div>
             {/* <div className="flex md:items-center md:justify-center flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4 mt-2 md:mt-0">
                 {NavBarLinks.map(item => (

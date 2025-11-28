@@ -11,11 +11,11 @@ const Footer = () => {
                 </div> */}
                 <div className="flex flex-col md:flex-row justify-center items-center md:space-x-4 mb-4 md:mb-0">
                     <Link to="/" className="text-white hover:text-gray-300 hover:no-underline">Home</Link>
-                    <Link to="/about/" className="text-white hover:text-gray-300 hover:no-underline">About Us</Link>
-                    <Link to="/privacy-policy/" className="text-white hover:text-gray-300 hover:no-underline">Privacy Policy</Link>
-                    <Link to="/contact/" className="text-white hover:text-gray-300 hover:no-underline">Contact Us</Link>
-                    <Link to="/disclaimer/" className="text-white hover:text-gray-300 hover:no-underline">Disclaimer</Link>
-                    <Link to="/terms-and-conditions/" className="text-white hover:text-gray-300 hover:no-underline">Terms and Conditions</Link>
+                    {/* <Link to="/about/" className="text-white hover:text-gray-300 hover:no-underline">About Us</Link> */}
+                    {/* <Link to="/privacy-policy/" className="text-white hover:text-gray-300 hover:no-underline">Privacy Policy</Link> */}
+                    {/* <Link to="/contact/" className="text-white hover:text-gray-300 hover:no-underline">Contact Us</Link> */}
+                    {/* <Link to="/disclaimer/" className="text-white hover:text-gray-300 hover:no-underline">Disclaimer</Link> */}
+                    {/* <Link to="/terms-and-conditions/" className="text-white hover:text-gray-300 hover:no-underline">Terms and Conditions</Link> */}
                 </div>
                 {/* <div className="flex w-64 justify-center space-x-4">
                     <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" className="text-white hover:text-gray-300">
@@ -36,7 +36,7 @@ const Footer = () => {
                 </div> */}
             </div>
             <div className="text-center mt-4">
-                <p className="text-sm text-gray-400">&copy; 2024 | Videoglancer</p>
+                <p className="text-sm text-gray-400">&copy; 2024 | Ytglancer</p>
             </div>
         </footer>
     );
