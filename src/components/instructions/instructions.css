@@ -1,0 +1,86 @@
+/* Instructions Card Styling - Matching Why YtGlancer Card */
+
+.instructions-card {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 3rem 2.5rem;
+    margin-bottom: 3rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.instructions-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a202c;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.instructions-description {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    color: #4a5568;
+    margin-bottom: 2rem;
+}
+
+.instructions-list {
+    padding-left: 1.5rem;
+    list-style: decimal;
+    list-style-position: outside;
+}
+
+.instruction-item {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: #2d3748;
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+}
+
+.instruction-item.separate-line {
+    margin-bottom: 1.5rem;
+}
+
+.instruction-step {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.instruction-desc {
+    color: #4a5568;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .instructions-card {
+        padding: 2rem 1.5rem;
+    }
+
+    .instructions-title {
+        font-size: 1.5rem;
+    }
+
+    .instructions-description {
+        font-size: 1rem;
+    }
+
+    .instruction-item {
+        font-size: 0.9375rem;
+    }
+}

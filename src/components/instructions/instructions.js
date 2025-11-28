@@ -1,16 +1,17 @@
 import React from "react";
+import './instructions.css';
 
 const Instructions = ({ heading, description, points, separateLine = false }) => {
     return (
-        <div className="bg-white">
-            <h2 className="text-2xl font-bold text-black mb-4">{heading}</h2>
-            {description ? <p className="mb-4">{description}</p> : null}
-            <ul className="pl-4 list-decimal list-outside space-y-1">
+        <div className="instructions-card">
+            <h2 className="instructions-title">{heading}</h2>
+            {description ? <p className="instructions-description">{description}</p> : null}
+            <ul className="instructions-list">
                 {points.map((point, index) => (
-                    <li key={index} className={separateLine ? "mb-2" : ""}>
-                        <span className="font-semibold">{point.step}</span>
+                    <li key={index} className={`instruction-item ${separateLine ? "separate-line" : ""}`}>
+                        <span className="instruction-step">{point.step}</span>
                         {separateLine ? <br /> : " "}
-                        <span>{point.desc}</span>
+                        <span className="instruction-desc">{point.desc}</span>
                     </li>
                 ))}
             </ul>
@@ -19,3 +20,4 @@ const Instructions = ({ heading, description, points, separateLine = false }) =>
 };
 
 export default Instructions;
+

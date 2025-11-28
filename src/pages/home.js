@@ -3,14 +3,15 @@ import Instructions from '../components/instructions/instructions';
 import { ApiService } from '../services/apiService';
 import ActivityIndicator from '../components/activityIndicator/activityIndicator';
 import { CommonService } from '../services/commonService';
+import './home.css';
 
 const Home = () => {
     const [videoLink, setVideoLink] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('')
 
-    const showMessage = (message) => {
-        setMessage(message)
+    const showMessage = (msg, type = 'error') => {
+        setMessage(`${type}: ${msg}`)
         setTimeout(() => {
             setMessage('')
         }, 3000)
@@ -18,7 +19,7 @@ const Home = () => {
     const fetchPdf = async (event) => {
         event.preventDefault();
         if (!videoLink) {
-            showMessage('Please enter a youtube video link')
+            showMessage('Please enter a youtube video link', 'error')
         } else {
             try {
                 setLoading(true);
@@ -36,89 +37,152 @@ const Home = () => {
                     }
                     setLoading(false);
                     setVideoLink('');
-                    showMessage("Pdf file downloaded successfully.")
+                    showMessage("Pdf file downloaded successfully.", 'success')
                 }).catch((error) => {
                     console.log("error during fetching pdf", error)
                     setVideoLink('')
+                    showMessage("Failed to convert video to PDF. Please try again.", 'error')
                 })
             } catch (error) {
                 console.log("error during fetching api", error)
+                showMessage("An unexpected error occurred. Please try again.", 'error')
             }
         }
     }
 
     return (
-        <div className="mt-4 flex  flex-col items-center justify-center h-100 bg-white">
-            <div className="rounded-md w-[90%] max-w-[920px] lg:w-[70%] mt-16 bg-gradient-to-r from-purple-500 to-pink-600 p-8 text-center text-white">
-                <h1 className="text-4xl font-bold">Convert YouTube Videos to PDF</h1>
-                <p className="mt-4 text-lg">Easily convert any YouTube video into a PDF document</p>
-                <form className="mt-16" onSubmit={fetchPdf}>
-                    <input
-                        type="text"
-                        className="w-[80%] text-stone-800 p-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter YouTube video link"
-                        value={videoLink}
-                        onChange={(e) => setVideoLink(e.target.value)}
-                    />
-                    {message ? (
-                        <div className='w-[100%] mt-4'>
-                            <p className='text-red-200 text-center'>{message}</p>
+        <div className="home-container">
+            {/* Animated background */}
+            <div className="bg-gradient"></div>
+
+            {/* Hero Section */}
+            <div className="hero-section">
+                <div className="glass-card">
+                    <div className="badge">
+                        <span className="badge-icon">🎬</span>
+                        <span>YouTube to PDF Converter</span>
+                    </div>
+
+                    <h1 className="hero-title">
+                        Transform YouTube Videos
+                        <span className="gradient-text"> Into Smart PDFs</span>
+                    </h1>
+
+                    <p className="hero-subtitle">
+                        Convert any YouTube video into organized, searchable PDF notes in seconds
+                    </p>
+
+                    <form className="converter-form" onSubmit={fetchPdf}>
+                        <div className="input-wrapper">
+                            <svg className="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            <input
+                                type="text"
+                                className="url-input"
+                                placeholder="Paste YouTube video link here..."
+                                value={videoLink}
+                                onChange={(e) => setVideoLink(e.target.value)}
+                            />
                         </div>
-                    ) : (
-                        <div className='w-[100%] mt-4 opacity-0'>...</div>
-                    )}
-                    <button
-                        disabled={loading}
-                        type="submit"
-                        className="w-[60%] mt-4 p-4 mb-10 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600">
-                        {loading && videoLink ? (
-                            <ActivityIndicator title={"Converting your video"} />
-                        ) : (
-                            'Convert to PDF'
+
+                        {message && (
+                            <div className={`message ${message.includes('success') ? 'success' : 'error'}`}>
+                                {message.split(': ')[1] || message}
+                            </div>
                         )}
-                    </button>
-                </form>
+
+                        <button
+                            disabled={loading}
+                            type="submit"
+                            className="convert-button">
+                            {loading && videoLink ? (
+                                <ActivityIndicator title={"Converting your video"} />
+                            ) : (
+                                <>
+                                    <span>Convert to PDF</span>
+                                    <svg className="button-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                    </svg>
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Features Grid */}
+                    <div className="features-grid">
+                        <div className="feature-item">
+                            <div className="feature-icon">⚡</div>
+                            <span>Lightning Fast</span>
+                        </div>
+                        <div className="feature-item">
+                            <div className="feature-icon">🔒</div>
+                            <span>100% Secure</span>
+                        </div>
+                        <div className="feature-item">
+                            <div className="feature-icon">💯</div>
+                            <span>Free Forever</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className='w-[90%] max-w-[920px] lg:w-[70%] mt-16'>
-                <p className='text-md'>
-                    The digital age, learning through online videos has become a popular way to acquire knowledge. However, retaining the information from these videos can be challenging. To address this issue, we introduce YtGlancer – a revolutionary tool designed to convert YouTube videos into easily accessible PDF notes. This single-page website empowers users to effortlessly transform their favorite video content into comprehensive, portable, and visually appealing PDF documents, ensuring a seamless learning experience.
-                </p>
+
+            {/* Content Sections */}
+            <div className="content-section">
+                <div className="intro-card">
+                    <h2 className="section-title">Why YtGlancer?</h2>
+                    <p className="section-text">
+                        In the digital age, learning through online videos has become a popular way to acquire knowledge. However, retaining the information from these videos can be challenging. YtGlancer is a revolutionary tool designed to convert YouTube videos into easily accessible PDF notes, empowering you to transform your favorite video content into comprehensive, portable, and visually appealing documents.
+                    </p>
+                </div>
+
+                <Instructions
+                    heading={"How to Use YtGlancer"}
+                    description={"Using YtGlancer is a straightforward process that anyone can follow:"}
+                    points={[
+                        { step: "Access the Website", desc: "Open your web browser and navigate to ytglancer.online." },
+                        { step: "Enter the YouTube Video Link", desc: "Paste the YouTube video URL and click the 'Convert' button. YtGlancer will process the video content and extract key information." },
+                        { step: "Generate PDF Notes", desc: "Our advanced algorithms analyze the video and create organized notes automatically." },
+                        { step: "Preview and Customize", desc: "Preview the generated PDF notes to ensure accuracy. Customize by highlighting important points and adding annotations." },
+                        { step: "Download and Save", desc: "Download the PDF file to your device and access it anytime, anywhere." },
+                    ]}
+                />
+
+                <Instructions
+                    heading={"Features of YtGlancer"}
+                    description={"YtGlancer stands out with features tailored to enhance your learning experience:"}
+                    points={[
+                        { step: "Automated Summarization", desc: "Advanced algorithms analyze video content to extract key concepts, ensuring comprehensive and accurate PDF notes." },
+                        { step: "Customization Options", desc: "Personalize your PDF notes by highlighting important points, adding notes, and adjusting formatting." },
+                        { step: "Time-Stamped Notes", desc: "Navigate directly to specific points in the video from the PDF with embedded time stamps." },
+                        { step: "Offline Learning", desc: "Access your summarized content offline, eliminating the need for a constant internet connection." },
+                        { step: "Cross-Device Compatibility", desc: "Works seamlessly on laptops, tablets, and smartphones for on-the-go learning." },
+                        { step: "Cloud Storage Integration", desc: "Save your PDF notes to popular cloud platforms for easy access anywhere." }
+                    ]}
+                />
+
+                <Instructions
+                    separateLine={true}
+                    heading={"Frequently Asked Questions"}
+                    description={""}
+                    points={[
+                        { step: "Is YtGlancer free to use?", desc: "Yes, YtGlancer offers a basic version with free access to core features. Premium plans are available for enhanced functionalities." },
+                        { step: "What quality of PDF notes can I expect?", desc: "Our algorithms strive to capture the essence of videos accurately. The generated PDF notes offer comprehensive summaries." },
+                        { step: "Can I convert videos from sources other than YouTube?", desc: "Currently, YtGlancer supports YouTube videos exclusively. We're exploring options to expand compatibility." },
+                        { step: "Are my converted videos and notes private?", desc: "Yes, YtGlancer respects your privacy. Your converted videos and notes are securely processed and not shared with third parties." },
+                        { step: "Can I edit the notes after conversion?", desc: "Absolutely. YtGlancer provides editing features to add annotations, highlights, and make adjustments." },
+                    ]}
+                />
+
+                <div className="conclusion-card">
+                    <h2 className="section-title">Start Converting Today</h2>
+                    <p className="section-text">
+                        YtGlancer revolutionizes the way we consume online video content by offering a seamless and efficient solution for converting YouTube videos into comprehensive PDF notes. With its user-friendly interface, customization options, and innovative features, YtGlancer empowers learners to retain information effectively. Whether you're a student, a professional, or a lifelong learner, YtGlancer makes it easier than ever to capture the essence of your favorite YouTube videos.
+                    </p>
+                </div>
             </div>
-            <div className='w-[90%] max-w-[920px] lg:w-[70%] my-8'>
-                <Instructions heading={"How to Use YtGlancer:"} description={"Using YtGlancer is a straightforward process that anyone, regardless of technical expertise, can follow:"} points={[
-                    { step: "Access the Website: ", desc: "Open your web browser and navigate to YtGlancer.online." },
-                    { step: "Enter the YouTube Video Link: ", desc: "After entering the YouTube video link, click the “Convert” button. YtGlancer will process the video content and extract key information, creating an organized set of notes." },
-                    { step: "Generate PDF Notes: ", desc: "Open your web browser and navigate to YtGlancer.online." },
-                    { step: "Preview and Customize: ", desc: "Once the PDF notes are generated, you can preview them to ensure accuracy. YtGlancer allows you to customize the notes by highlighting important points, adding annotations, and adjusting formatting." },
-                    { step: "Download and Save: ", desc: "Satisfied with the PDF notes? Download the PDF file to your device. You now have a comprehensive summary of the video’s content, making it convenient to revisit and study." },
-                ]} />
-            </div>
-            <div className='w-[90%] max-w-[920px] lg:w-[70%] my-8'>
-                <Instructions heading={"Features of YtGlancer:"} description={"YtGlancer stands out with a range of features tailored to enhance the learning experience:"} points={[
-                    { step: "Automated Summarization: ", desc: "YtGlancer’s advanced algorithms analyze the video’s audio and visual components to extract key concepts, ensuring that the generated PDF notes are comprehensive and accurate." },
-                    { step: "Customization Options: ", desc: "Users can personalize the PDF notes by highlighting important points, adding notes, and adjusting the formatting to suit their learning style." },
-                    { step: "Time-Stamped Notes: ", desc: "YtGlancer embeds time stamps within the notes, enabling users to easily navigate to specific points in the video directly from the PDF." },
-                    { step: "Offline Learning: ", desc: "With the downloadable PDF notes, users can access the summarized content offline, eliminating the need for a constant internet connection." },
-                    { step: "Cross-Device Compatibility: ", desc: "YtGlancer is designed to work seamlessly on various devices, including laptops, tablets, and smartphones, providing flexibility for on-the-go learning." },
-                    { step: "Cloud Storage Integration: ", desc: "Users can opt to save their PDF notes to popular cloud storage platforms, ensuring easy access from anywhere and preventing data loss." }
-                ]} />
-            </div>
-            <div className='w-[90%] max-w-[920px] lg:w-[70%] my-8'>
-                <Instructions separateLine={true} heading={"Frequently Asked Questions:"} description={""} points={[
-                    { step: "Is YtGlancer free to use?", desc: "Yes, YtGlancer offers a basic version with free access to its core features. For enhanced functionalities, premium subscription plans are available." },
-                    { step: "What quality of PDF notes can I expect?", desc: "YtGlancer’s algorithms strive to capture the essence of the video accurately. While minor adjustments might be needed, the generated PDF notes offer a comprehensive summary." },
-                    { step: "Can I convert videos from sources other than YouTube?", desc: "Currently, YtGlancer supports YouTube videos exclusively. However, we are actively exploring options to expand compatibility." },
-                    { step: "Are my converted videos and notes private?", desc: "Yes, YtGlancer respects user privacy. Your converted videos and notes are securely processed and not shared with any third parties." },
-                    { step: "Can I edit the notes after conversion?", desc: "Absolutely. YtGlancer provides editing features that allow you to add annotations, highlights, and make adjustments to the generated notes." },
-                ]} />
-            </div>
-            <div className='w-[90%] max-w-[920px] lg:w-[70%] mt-8'>
-                <h2 className="text-2xl font-bold text-black mb-4">Conclusion</h2>
-                <p>YtGlancer revolutionizes the way we consume online video content by offering a seamless and efficient solution for converting YouTube videos into comprehensive PDF notes. With its user-friendly interface, customization options, and innovative features, YtGlancer empowers learners to retain information effectively. Whether you’re a student, a professional, or a lifelong learner, YtGlancer makes it easier than ever to capture the essence of your favorite YouTube videos and access them whenever and wherever you want. Embrace the future of learning with YtGlancer and elevate your educational journey.</p>
-            </div>
-        </div >
+        </div>
     );
 };
 
 export default Home;
-
