@@ -1,0 +1,17 @@
+.layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.layout-header {
+    flex-shrink: 0;
+}
+
+.layout-footer {
+    flex-shrink: 0;
+}
+
+.layout-content {
+    flex-grow: 1;
+}
