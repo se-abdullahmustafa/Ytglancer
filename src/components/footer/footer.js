@@ -36,7 +36,7 @@ const Footer = () => {
                 </div> */}
             </div>
             <div className="text-center mt-4">
-                <p className="text-sm text-gray-400">&copy; 2024 | Ytglancer</p>
+                <p className="text-sm text-gray-400">&copy; 2025 | Ytglancer</p>
             </div>
         </footer>
     );
