@@ -1,54 +1,57 @@
-import React, { useState } from 'react'
-import Instructions from '../components/instructions/instructions';
-import { ApiService } from '../services/apiService';
-import ActivityIndicator from '../components/activityIndicator/activityIndicator';
-import { CommonService } from '../services/commonService';
-import './home.css';
+'use client';
 
-const Home = () => {
+import React, { useState } from 'react';
+import Instructions from './components/instructions/instructions';
+import { ApiService } from '@/lib/apiService';
+import ActivityIndicator from './components/activityIndicator/activityIndicator';
+import { CommonService } from '@/lib/commonService';
+import './page.css';
+
+export default function Home() {
     const [videoLink, setVideoLink] = useState('');
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('')
+    const [message, setMessage] = useState('');
 
     const showMessage = (msg, type = 'error') => {
-        setMessage(`${type}: ${msg}`)
+        setMessage(`${type}: ${msg}`);
         setTimeout(() => {
-            setMessage('')
-        }, 3000)
-    }
+            setMessage('');
+        }, 3000);
+    };
+
     const fetchPdf = async (event) => {
         event.preventDefault();
         if (!videoLink) {
-            showMessage('Please enter a youtube video link', 'error')
+            showMessage('Please enter a youtube video link', 'error');
         } else {
             try {
                 setLoading(true);
                 ApiService.fetchPdf(videoLink).then(async (response) => {
                     const result = await response.json();
                     if (result.pdf) {
-
                         const link = document.createElement('a');
                         link.href = `data:application/pdf;base64,${result.pdf}`;
                         link.download = `${CommonService.getTimestamp()}.pdf`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-
                     }
                     setLoading(false);
                     setVideoLink('');
-                    showMessage("Pdf file downloaded successfully.", 'success')
+                    showMessage("Pdf file downloaded successfully.", 'success');
                 }).catch((error) => {
-                    console.log("error during fetching pdf", error)
-                    setVideoLink('')
-                    showMessage("Failed to convert video to PDF. Please try again.", 'error')
-                })
+                    console.log("error during fetching pdf", error);
+                    setVideoLink('');
+                    setLoading(false);
+                    showMessage("Failed to convert video to PDF. Please try again.", 'error');
+                });
             } catch (error) {
-                console.log("error during fetching api", error)
-                showMessage("An unexpected error occurred. Please try again.", 'error')
+                console.log("error during fetching api", error);
+                setLoading(false);
+                showMessage("An unexpected error occurred. Please try again.", 'error');
             }
         }
-    }
+    };
 
     return (
         <div className="home-container">
@@ -183,6 +186,4 @@ const Home = () => {
             </div>
         </div>
     );
-};
-
-export default Home;
+}

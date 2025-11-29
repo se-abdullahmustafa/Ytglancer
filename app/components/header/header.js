@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import './header.css';
 
 const NavBarLinks = [
@@ -10,7 +10,7 @@ const NavBarLinks = [
 ];
 
 const NavbarLink = ({ item }) => (
-    <Link to={item.path} className="text-stone-700 text-center hover:text-gray-300 hover:no-underline mx-2">
+    <Link href={item.path} className="text-stone-700 text-center hover:text-gray-300 hover:no-underline mx-2">
         {item.label}
     </Link>
 );

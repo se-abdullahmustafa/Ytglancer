@@ -20,4 +20,3 @@ const Instructions = ({ heading, description, points, separateLine = false }) =>
 };
 
 export default Instructions;
-
