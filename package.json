@@ -1,5 +1,5 @@
 {
-  "name": "videoglancer",
+  "name": "YtGlancer",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,15 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^14.2.0",
+    "next": "^16.0.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-icons": "^5.2.1",
-    "sharp": "^0.33.0"
+    "react-icons": "^5.4.0",
+    "sharp": "^0.33.3"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.6"
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4"
   }
 }
