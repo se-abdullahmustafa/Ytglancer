@@ -1,4 +1,14 @@
-# Getting Started with Create React App
+# YtGlancer
+
+## Environment Configuration
+
+The application uses different API endpoints based on the environment:
+
+- **Development**: `http://localhost:8000` (used when `NODE_ENV=development`)
+- **Staging**: `https://staging.api.rajag.site` (set `NEXT_PUBLIC_APP_ENV=staging`)
+- **Production**: `https://api.rajag.site` (default for built application)
+
+## Getting Started
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
