@@ -21,7 +21,7 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
   line-height: 1.5;
@@ -191,7 +191,9 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .progress-container {
@@ -274,11 +276,112 @@ body {
   .glass-card {
     padding: 2rem 1.5rem;
   }
-  
+
+  .content-section {
+    padding: 2rem 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .content-section h2 {
+    font-size: 2rem;
+    color: var(--text-main);
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+  }
+
+  .content-section h3 {
+    font-size: 1.5rem;
+    color: var(--text-main);
+    margin: 2.5rem 0 1.5rem;
+    font-weight: 600;
+  }
+
+  .content-section h4 {
+    font-size: 1.2rem;
+    color: var(--text-main);
+    margin: 2rem 0 0.8rem;
+    font-weight: 600;
+  }
+
+  .content-section p {
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 1.2rem;
+  }
+
+  .content-section ol,
+  .content-section ul {
+    margin: 1.2rem 0 1.2rem 1.5rem;
+    color: var(--text-muted);
+  }
+
+  .content-section li {
+    margin-bottom: 0.8rem;
+    line-height: 1.6;
+  }
+
+  .faq {
+    margin: 2rem 0;
+  }
+
+  .faq-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .faq-item h4 {
+    color: var(--primary);
+    margin-top: 0;
+  }
+
+  .faq-item p {
+    margin-bottom: 0;
+  }
+
+  .cta {
+    background: linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.1) 0%,
+      rgba(59, 130, 246, 0.1) 100%
+    );
+    border-radius: 12px;
+    padding: 2rem;
+    margin-top: 3rem;
+    text-align: center;
+  }
+
+  .cta h2 {
+    color: var(--primary);
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .content-section {
+      padding: 1.5rem 0.8rem;
+    }
+
+    .content-section h2 {
+      font-size: 1.75rem;
+    }
+
+    .content-section h3 {
+      font-size: 1.35rem;
+    }
+
+    .faq-item {
+      padding: 1rem;
+    }
+  }
+
   .hero-title {
     font-size: 2rem;
   }
-  
+
   .features-grid {
     grid-template-columns: 1fr;
     gap: 1.5rem;
