@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import ApiService, { ApiError } from "@/lib/apiService";
-import "./page.css";
+import { getDownloadConfig } from "@/lib/downloadConfig";
 
 export default function Home() {
   const [videoLink, setVideoLink] = useState("");
@@ -10,12 +10,16 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [conversionProgress, setConversionProgress] = useState(0);
   const [isConverting, setIsConverting] = useState(false);
+  const [currentTaskId, setCurrentTaskId] = useState(null);
   const [timeInterval, setTimeInterval] = useState(60);
   const [conversionResult, setConversionResult] = useState(null);
   const [progressStatus, setProgressStatus] = useState("");
   const [progressDetails, setProgressDetails] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadStep, setDownloadStep] = useState(1); // Track two-step download progress
+  const [adVisited, setAdVisited] = useState(false); // Track if ad step completed
   const unsubscribeRef = useRef(null);
+  const downloadConfigRef = useRef(getDownloadConfig());
 
   const showMessage = (msg, type = "error") => {
     setMessage(`${type}: ${msg}`);
@@ -72,10 +76,37 @@ export default function Home() {
     } finally {
       setIsConverting(false);
       setConversionProgress(0);
+      setCurrentTaskId(null);
     }
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadStep1 = () => {
+    if (!conversionResult) return;
+
+    try {
+      const config = downloadConfigRef.current;
+      console.log("[Frontend] Opening ad URL:", config.adUrl);
+      
+      // Open ad in new tab (same window) or current tab
+      const target = config.adWindow.openNewTab ? '_blank' : '_self';
+      
+      window.open(config.adUrl, target);
+      
+      console.log("[Frontend] Ad URL opened successfully", { 
+        target,
+        isNewTab: config.adWindow.openNewTab,
+      });
+      
+      setAdVisited(true);
+      setDownloadStep(2);
+      showMessage(config.messages.step2 || "Ad page opened. Click download to proceed.", "success");
+    } catch (error) {
+      console.error("Step 1 error:", error);
+      showMessage("Failed to open ad page. Please try again.", "error");
+    }
+  };
+
+  const handleDownloadStep2 = async () => {
     if (!conversionResult) return;
 
     try {
@@ -103,6 +134,27 @@ export default function Home() {
       showMessage(errorMessage, "error");
     } finally {
       setIsDownloading(false);
+      // Only reset download flow if two-step is enabled, to allow multiple downloads
+      if (downloadConfigRef.current.enableTwoStepDownload) {
+        setDownloadStep(1);
+        setAdVisited(false);
+      }
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    const config = downloadConfigRef.current;
+    
+    // Single-step download if two-step is disabled
+    if (!config.enableTwoStepDownload) {
+      return handleDownloadStep2();
+    }
+    
+    // Two-step download flow
+    if (downloadStep === 1 && !adVisited) {
+      return handleDownloadStep1();
+    } else {
+      return handleDownloadStep2();
     }
   };
 
@@ -132,6 +184,7 @@ export default function Home() {
     setIsConverting(false);
     setConversionProgress(0);
     setProgressStatus("error");
+    setCurrentTaskId(null);
   };
 
   const startConversion = async (event) => {
@@ -170,6 +223,7 @@ export default function Home() {
       }
 
       console.log("[Frontend] Task ID received:", taskId);
+      setCurrentTaskId(taskId);
       setProgressStatus("processing");
 
       // Subscribe to progress updates via /stream endpoint
@@ -200,6 +254,28 @@ export default function Home() {
     }
   };
 
+  const cancelCurrentConversion = async () => {
+    if (!currentTaskId) return;
+
+    try {
+      console.log("[Frontend] Canceling task:", currentTaskId);
+      await ApiService.cancelTask(currentTaskId);
+      // Unsubscribe from SSE and reset state
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+      setIsConverting(false);
+      setCurrentTaskId(null);
+      setConversionProgress(0);
+      setProgressStatus("canceled");
+      showMessage("Conversion canceled", "success");
+    } catch (error) {
+      console.error("Cancel error:", error);
+      const errorMessage = error instanceof ApiError ? error.message : "Failed to cancel conversion";
+      showMessage(errorMessage, "error");
+    }
+  };
+
   // Cleanup event listeners on unmount
   React.useEffect(() => {
     return () => {
@@ -209,44 +285,51 @@ export default function Home() {
     };
   }, []);
 
-  return (
-    <main className="home-container">
-      <header className="hero-section" role="banner">
-        <div className="glass-card">
-          <div className="badge" aria-label="Product Category">
-            <span>YouTube to PDF Converter</span>
-          </div>
+  const getStepStatus = (stepNumber) => {
+    const statusMap = {
+      1: ["initializing"].includes(progressStatus),
+      2: ["processing"].includes(progressStatus),
+      3: ["completed"].includes(progressStatus),
+    };
+    return statusMap[stepNumber] || false;
+  };
 
-          <h1 className="hero-title">
-            Transform YouTube Videos into{" "}
-            <span>Smart, Searchable PDF Notes</span>
+  const isStepCompleted = (stepNumber) => {
+    if (progressStatus === "completed") return true;
+    const completedMap = {
+      1: ["processing", "completed"].includes(progressStatus),
+      2: ["completed"].includes(progressStatus),
+      3: ["completed"].includes(progressStatus),
+    };
+    return completedMap[stepNumber] || false;
+  };
+
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+      <header className="w-full max-w-2xl" role="banner">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-12 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4 leading-tight">
+            Convert Videos to <span className="text-blue-600">PDF Notes</span>
           </h1>
 
-          <p className="hero-subtitle">
-            Instantly convert any YouTube video into organized, searchable PDF
-            notes with timestamps. Perfect for students, researchers, and
-            professionals who want to learn more effectively.
+          <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
+            Transform any YouTube video into organized, searchable PDF notes instantly. Perfect for students and professionals.
           </p>
 
-          <form className="converter-form" onSubmit={startConversion}>
-            <div className="input-wrapper">
-              <svg
-                className="input-icon"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
-                />
-              </svg>
+          <form className="max-w-xl mx-auto flex flex-col gap-6" onSubmit={startConversion}>
+            {/* YouTube URL Input */}
+            <div className="flex flex-col gap-2">
+              <label htmlFor="videoUrl" className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+                YouTube Video URL
+              </label>
               <input
+                id="videoUrl"
                 type="url"
-                className="url-input"
-                placeholder="Paste YouTube video URL here..."
+                className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-base bg-slate-50 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 disabled:opacity-70 transition-all"
+                placeholder="https://www.youtube.com/watch?v=..."
                 value={videoLink}
                 onChange={(e) => setVideoLink(e.target.value)}
                 disabled={isConverting}
@@ -254,63 +337,128 @@ export default function Home() {
               />
             </div>
 
-            <div className="time-interval-selector">
-              <label htmlFor="timeInterval">Capture Interval (seconds)</label>
+            {/* Capture Interval Input */}
+            <div className="flex flex-col gap-2">
+              <label htmlFor="captureInterval" className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Capture Interval (seconds)
+              </label>
               <input
+                id="captureInterval"
                 type="number"
-                id="timeInterval"
+                className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-base bg-slate-50 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 disabled:opacity-70 transition-all"
                 value={timeInterval}
                 onChange={(e) => setTimeInterval(Number(e.target.value))}
                 disabled={isConverting}
-                className="time-input"
                 min="1"
                 max="3600"
-                placeholder="e.g. 60"
+                placeholder="60"
               />
             </div>
 
             {isConverting && (
-              <div className="progress-container">
-                <div
-                  className="progress-bar"
-                  style={{ width: `${conversionProgress}%` }}
-                ></div>
-                <span className="progress-text">
-                  {Math.round(conversionProgress)}%
-                </span>
+              <div className="flex items-center gap-0 my-8 p-6 bg-gradient-to-r from-blue-50 via-slate-50 to-blue-50 rounded-lg border border-slate-200">
+                {/* Step 1 */}
+                <div className="flex items-center gap-3 flex-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${
+                    isStepCompleted(1) 
+                      ? 'bg-emerald-500 text-white' 
+                      : getStepStatus(1) 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {isStepCompleted(1) ? (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : '1'}
+                  </div>
+                  <div className="hidden md:block">
+                    <div className={`font-semibold text-sm ${getStepStatus(1) ? 'text-blue-600' : isStepCompleted(1) ? 'text-emerald-600' : 'text-slate-600'}`}>Initializing</div>
+                    <div className="text-xs text-slate-500">Preparing conversion</div>
+                  </div>
+                </div>
+
+                <div className={`h-1 w-12 mx-2 transition-all ${isStepCompleted(1) ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>
+
+                {/* Step 2 */}
+                <div className="flex items-center gap-3 flex-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${
+                    isStepCompleted(2) 
+                      ? 'bg-emerald-500 text-white' 
+                      : getStepStatus(2) 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {isStepCompleted(2) ? (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : '2'}
+                  </div>
+                  <div className="hidden md:block">
+                    <div className={`font-semibold text-sm ${getStepStatus(2) ? 'text-blue-600' : isStepCompleted(2) ? 'text-emerald-600' : 'text-slate-600'}`}>Processing</div>
+                    <div className="text-xs text-slate-500">Converting video to PDF</div>
+                  </div>
+                </div>
+
+                <div className={`h-1 w-12 mx-2 transition-all ${isStepCompleted(2) ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>
+
+                {/* Step 3 */}
+                <div className="flex items-center gap-3 flex-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${
+                    isStepCompleted(3) 
+                      ? 'bg-emerald-500 text-white' 
+                      : getStepStatus(3) 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {isStepCompleted(3) ? (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : '3'}
+                  </div>
+                  <div className="hidden md:block">
+                    <div className={`font-semibold text-sm ${getStepStatus(3) ? 'text-blue-600' : isStepCompleted(3) ? 'text-emerald-600' : 'text-slate-600'}`}>Complete</div>
+                    <div className="text-xs text-slate-500">Ready to download</div>
+                  </div>
+                </div>
               </div>
             )}
 
             {isConverting && progressDetails && (
-              <div className="progress-details">
-                <div className="progress-status-badge">
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-600 rounded">
+                <div className="flex items-center gap-2 text-sm font-medium text-blue-600 mb-2">
                   {progressStatus === "processing" && (
                     <>
-                      <div className="spinner-small"></div>
+                      <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
                       <span>Processing...</span>
                     </>
                   )}
                   {progressStatus === "initializing" && (
                     <>
-                      <div className="spinner-small"></div>
+                      <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
                       <span>Initializing...</span>
                     </>
                   )}
                 </div>
                 {progressDetails.message && (
-                  <p className="progress-message">{progressDetails.message}</p>
+                  <p className="text-xs text-slate-600">{progressDetails.message}</p>
                 )}
               </div>
             )}
 
             <button
               type="submit"
-              className="convert-button"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
               disabled={isConverting}
             >
               {isConverting ? (
                 <>
-                  <div className="spinner"></div>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span>Processing...</span>
                 </>
               ) : (
@@ -318,10 +466,25 @@ export default function Home() {
               )}
             </button>
 
+            {isConverting && (
+              <button
+                type="button"
+                onClick={cancelCurrentConversion}
+                className="w-full mt-3 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>Cancel Conversion</span>
+              </button>
+            )}
+
             {message && (
               <div
-                className={`message ${
-                  message.startsWith("error:") ? "error" : "success"
+                className={`p-3 rounded-lg text-sm font-medium ${
+                  message.startsWith("error:") 
+                    ? 'bg-red-50 text-red-700 border border-red-200' 
+                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                 }`}
               >
                 {message.replace(/^(error:|success:)\s*/, "")}
@@ -329,305 +492,72 @@ export default function Home() {
             )}
 
             {conversionResult && (
-              <div className="download-card">
-                <div className="download-card-header">
-                  <svg
-                    className="success-icon"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+              <div className="mt-6 p-6 bg-gradient-to-br from-teal-50 to-slate-50 border-2 border-teal-500 rounded-xl shadow-lg">
+                <div className="flex gap-4 mb-6 items-center">
+                  <div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                   <div>
-                    <h3>Conversion Complete!</h3>
-                    <p>Your PDF is ready to download</p>
+                    <h3 className="text-lg font-bold text-slate-900">Conversion Complete</h3>
+                    {downloadConfigRef.current.enableTwoStepDownload && adVisited && (
+                      <p className="text-xs text-teal-600 mt-1">Step 2: Download your PDF</p>
+                    )}
                   </div>
                 </div>
 
-                <div className="download-card-details">
-                  <div className="detail-item">
-                    <span className="detail-label">Title:</span>
-                    <span className="detail-value">
-                      {conversionResult.title || "YouTube Video"}
-                    </span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">File:</span>
-                    <span className="detail-value">
-                      {conversionResult.filename}
-                    </span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Status:</span>
-                    <span className="detail-value success-text">
-                      ✓ Completed
-                    </span>
+                <div className="mb-6 p-3 bg-white/80 rounded-lg border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <svg className="w-4 h-4 text-teal-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.3A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z" />
+                      </svg>
+                      <span className="text-sm text-slate-600 truncate">{conversionResult.filename}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="download-card-actions">
-                  <button
-                    className="download-button"
-                    onClick={handleDownloadPdf}
-                    disabled={isDownloading}
-                  >
-                    {isDownloading ? (
+                <button
+                  className="w-full py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloading || (downloadConfigRef.current.enableTwoStepDownload && downloadStep === 1 && !adVisited && isDownloading)}
+                >
+                  {isDownloading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>{downloadConfigRef.current.messages.completed || "Processing..."}</span>
+                    </>
+                  ) : downloadConfigRef.current.enableTwoStepDownload ? (
+                    downloadStep === 1 ? (
                       <>
-                        <div className="spinner-small"></div>
-                        <span>Downloading...</span>
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM15.657 14.243a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM11 17a1 1 0 102 0v-1a1 1 0 10-2 0v1zM5.757 15.657a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zM5.757 5.757a1 1 0 000-1.414L5.05 3.636a1 1 0 00-1.414 1.414l.707.707z" />
+                        </svg>
+                        <span>{downloadConfigRef.current.labels.step1 || "Visit Ad & Download"}</span>
                       </>
                     ) : (
                       <>
-                        <svg
-                          className="download-icon"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                          />
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
-                        <span>Download PDF</span>
+                        <span>{downloadConfigRef.current.labels.step2 || "Download PDF"}</span>
                       </>
-                    )}
-                  </button>
-                  <button
-                    className="reset-button"
-                    onClick={resetForm}
-                    disabled={isDownloading}
-                  >
-                    Convert Another Video
-                  </button>
-                </div>
+                    )
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <span>Download PDF</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </form>
         </div>
       </header>
-
-      <section className="content-section" aria-labelledby="why-ytglancer">
-        <div className="glass-card">
-          <h2 id="why-ytglancer" className="section-title">
-            Why Choose YtGlancer for YouTube to PDF Conversion?
-          </h2>
-          <p className="lead">
-            In today's fast-paced digital world, video content is king. But how
-            often do you find yourself struggling to remember key points from
-            educational videos, tutorials, or lectures? YtGlancer bridges the
-            gap between video learning and traditional note-taking by
-            transforming YouTube content into structured, searchable PDF
-            documents that enhance knowledge retention and make study sessions
-            more productive.
-          </p>
-
-          <section className="how-it-works" aria-labelledby="how-it-works">
-            <h2 id="how-it-works" className="section-title">
-              How to Convert YouTube Videos to PDF in 3 Simple Steps
-            </h2>
-            <p className="lead">
-              Our intuitive platform makes it effortless to transform any
-              YouTube video into comprehensive PDF notes. Here's how it works:
-            </p>
-            <ol>
-              <li>
-                <strong>Access the Website</strong> - Open your web browser and
-                navigate to ytglancer.online.
-              </li>
-              <li>
-                <strong>Enter the YouTube Video Link</strong> - Paste the
-                YouTube video URL and click the 'Convert' button. YtGlancer will
-                process the video content and extract key information.
-              </li>
-              <li>
-                <strong>Generate PDF Notes</strong> - Our advanced algorithms
-                analyze the video and create organized notes automatically.
-              </li>
-              <li>
-                <strong>Preview and Customize</strong> - Preview the generated
-                PDF notes to ensure accuracy. Customize by highlighting
-                important points and adding annotations.
-              </li>
-              <li>
-                <strong>Download and Save</strong> - Download the PDF file to
-                your device and access it anytime, anywhere.
-              </li>
-            </ol>
-          </section>
-
-          <section className="features" aria-labelledby="key-features">
-            <h2 id="key-features" className="section-title">
-              Powerful Features for Enhanced Learning
-            </h2>
-            <p className="lead">
-              YtGlancer is packed with intelligent features designed to maximize
-              your learning potential and streamline your study process:
-            </p>
-            <ul>
-              <li>
-                <strong>Automated Summarization</strong> - Advanced algorithms
-                analyze video content to extract key concepts, ensuring
-                comprehensive and accurate PDF notes.
-              </li>
-              <li>
-                <strong>Customization Options</strong> - Personalize your PDF
-                notes by highlighting important points, adding notes, and
-                adjusting formatting.
-              </li>
-              <li>
-                <strong>Time-Stamped Notes</strong> - Navigate directly to
-                specific points in the video from the PDF with embedded time
-                stamps.
-              </li>
-              <li>
-                <strong>Offline Learning</strong> - Access your summarized
-                content offline, eliminating the need for a constant internet
-                connection.
-              </li>
-              <li>
-                <strong>Cross-Device Compatibility</strong> - Works seamlessly
-                on laptops, tablets, and smartphones for on-the-go learning.
-              </li>
-              <li>
-                <strong>Cloud Storage Integration</strong> - Save your PDF notes
-                to popular cloud platforms for easy access anywhere.
-              </li>
-            </ul>
-          </section>
-
-          <section
-            className="faq-section"
-            itemScope
-            itemType="https://schema.org/FAQPage"
-            aria-labelledby="faq-heading"
-          >
-            <h2 id="faq-heading" className="section-title">
-              Frequently Asked Questions
-            </h2>
-            <p className="lead">
-              Find quick answers to common questions about our YouTube to PDF
-              conversion service.
-            </p>
-            <div className="faq">
-              <div className="faq-item">
-                <h4>Is YtGlancer free to use?</h4>
-                <p>
-                  Yes, YtGlancer offers a basic version with free access to core
-                  features. Premium plans are available for enhanced
-                  functionalities.
-                </p>
-              </div>
-              <div className="faq-item">
-                <h4>What quality of PDF notes can I expect?</h4>
-                <p>
-                  Our algorithms strive to capture the essence of videos
-                  accurately. The generated PDF notes offer comprehensive
-                  summaries.
-                </p>
-              </div>
-              <div className="faq-item">
-                <h4>Can I convert videos from sources other than YouTube?</h4>
-                <p>
-                  Currently, YtGlancer supports YouTube videos exclusively.
-                  We're exploring options to expand compatibility.
-                </p>
-              </div>
-              <div className="faq-item">
-                <h4>Are my converted videos and notes private?</h4>
-                <p>
-                  Yes, YtGlancer respects your privacy. Your converted videos
-                  and notes are securely processed and not shared with third
-                  parties.
-                </p>
-              </div>
-              <div className="faq-item">
-                <h4>Can I edit the notes after conversion?</h4>
-                <p>
-                  Absolutely. YtGlancer provides editing features to add
-                  annotations, highlights, and make adjustments.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="cta" aria-labelledby="get-started">
-            <div className="cta-content">
-              <h2 id="get-started" className="cta-title">
-                Ready to Transform Your Learning Experience?
-              </h2>
-              <p className="cta-text">
-                Join thousands of students, educators, and professionals who are
-                already using YtGlancer to enhance their learning journey. Our
-                platform is completely free to start, with no registration
-                required. Simply paste a YouTube link and get instant access to
-                beautifully formatted, searchable PDF notes that help you retain
-                information more effectively.
-              </p>
-              <div className="cta-benefits">
-                <p>
-                  <strong>Perfect for:</strong>
-                </p>
-                <ul>
-                  <li>📚 Students creating study guides from lecture videos</li>
-                  <li>
-                    💼 Professionals capturing insights from tutorials and
-                    webinars
-                  </li>
-                  <li>🧠 Lifelong learners documenting educational content</li>
-                  <li>👨‍🏫 Educators preparing teaching materials</li>
-                </ul>
-              </div>
-              <p className="cta-note">
-                No credit card required • Convert up to 5 videos per day for
-                free • Premium plans available for power users
-              </p>
-            </div>
-          </section>
-        </div>
-      </section>
-      <footer className="site-footer" role="contentinfo">
-        <div className="footer-content">
-          <div className="footer-section">
-            <h3>About YtGlancer</h3>
-            <p>
-              Transforming online learning by making video content more
-              accessible and study-friendly since 2023.
-            </p>
-          </div>
-          <div className="footer-section">
-            <h3>Quick Links</h3>
-            <ul>
-              <li>
-                <a href="/privacy">Privacy Policy</a>
-              </li>
-              <li>
-                <a href="/terms">Terms of Service</a>
-              </li>
-              <li>
-                <a href="/contact">Contact Us</a>
-              </li>
-              <li>
-                <a href="/blog">Blog</a>
-              </li>
-            </ul>
-          </div>
-          <div className="footer-legal">
-            <p>
-              &copy; {new Date().getFullYear()} YtGlancer. All rights reserved.
-            </p>
-            <p>Not affiliated with YouTube or Google LLC.</p>
-          </div>
-        </div>
-      </footer>
     </main>
   );
 }
