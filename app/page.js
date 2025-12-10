@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ApiService, ApiError } from "@/lib/apiService";
+import ApiService, { ApiError } from "@/lib/apiService";
 import "./page.css";
 
 export default function Home() {
@@ -11,6 +11,10 @@ export default function Home() {
   const [conversionProgress, setConversionProgress] = useState(0);
   const [isConverting, setIsConverting] = useState(false);
   const [timeInterval, setTimeInterval] = useState(60);
+  const [conversionResult, setConversionResult] = useState(null);
+  const [progressStatus, setProgressStatus] = useState("");
+  const [progressDetails, setProgressDetails] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const unsubscribeRef = useRef(null);
 
   const showMessage = (msg, type = "error") => {
@@ -21,23 +25,75 @@ export default function Home() {
   };
 
   const handleProgressUpdate = (progress) => {
-    setConversionProgress(progress.percentage || 0);
+    console.log("[Frontend] Progress update received:", progress);
+    
+    // Handle different progress response formats
+    const percentage = progress.percentage || progress.progress || 0;
+    const status = progress.status || "processing";
+    const message = progress.message || `Processing... ${Math.round(percentage)}%`;
+    
+    setConversionProgress(Math.min(100, percentage));
+    setProgressStatus(status);
+    setProgressDetails({
+      ...progress,
+      percentage: Math.min(100, percentage),
+    });
   };
 
   const handleConversionComplete = async (result) => {
     try {
-      if (result.filename) {
-        const pdfBlob = await ApiService.downloadPdf(result.filename);
-        const url = window.URL.createObjectURL(pdfBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `yt_${Date.now()}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        showMessage("PDF downloaded successfully!", "success");
+      console.log("[Frontend] Conversion complete:", result);
+      
+      // Extract PDF filename from various response formats
+      const pdfFilename = result.pdf_filename || result.filename || (result.data?.pdf_filename);
+      
+      if (pdfFilename) {
+        // Store result for display
+        setConversionResult({
+          filename: pdfFilename,
+          title: extractVideoTitle(videoLink),
+          videoUrl: videoLink,
+          completedAt: new Date(),
+          status: "completed",
+          ...result,
+        });
+        setProgressStatus("completed");
+        showMessage("Conversion completed successfully!", "success");
+      } else {
+        showMessage("Conversion completed but PDF filename not found", "error");
       }
+    } catch (error) {
+      console.error("Completion error:", error);
+      const errorMessage =
+        error instanceof ApiError
+          ? error.message
+          : "Failed to process conversion result. Please try again.";
+      showMessage(errorMessage, "error");
+    } finally {
+      setIsConverting(false);
+      setConversionProgress(0);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!conversionResult) return;
+
+    try {
+      setIsDownloading(true);
+      console.log("[Frontend] Starting PDF download for:", conversionResult.filename);
+      
+      const pdfBlob = await ApiService.downloadPdf(conversionResult.filename);
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = conversionResult.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log("[Frontend] PDF download successful");
+      showMessage("PDF downloaded successfully!", "success");
     } catch (error) {
       console.error("Download error:", error);
       const errorMessage =
@@ -46,9 +102,24 @@ export default function Home() {
           : "Failed to download PDF. Please try again.";
       showMessage(errorMessage, "error");
     } finally {
-      setIsConverting(false);
-      setConversionProgress(0);
+      setIsDownloading(false);
     }
+  };
+
+  const extractVideoTitle = (url) => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.searchParams.get('v') || 'YouTube Video';
+    } catch {
+      return 'YouTube Video';
+    }
+  };
+
+  const resetForm = () => {
+    setVideoLink("");
+    setConversionResult(null);
+    setConversionProgress(0);
+    setMessage("");
   };
 
   const handleConversionError = (error) => {
@@ -60,6 +131,7 @@ export default function Home() {
     showMessage(errorMessage, "error");
     setIsConverting(false);
     setConversionProgress(0);
+    setProgressStatus("error");
   };
 
   const startConversion = async (event) => {
@@ -73,22 +145,40 @@ export default function Home() {
     try {
       setIsConverting(true);
       setConversionProgress(0);
+      setConversionResult(null);
+      setProgressStatus("initializing");
+      setProgressDetails(null);
+
+      console.log("[Frontend] Starting conversion for URL:", videoLink);
+
+      // Convert seconds to minutes (API expects minutes)
+      const timeIntervalMinutes = Math.max(1, Math.round(timeInterval / 60));
 
       // Start the conversion process
       const response = await ApiService.convertVideoToPdf(
         videoLink,
-        timeInterval
+        timeIntervalMinutes
       );
 
-      if (response.data && response.data.task_id) {
-        // Subscribe to progress updates
-        unsubscribeRef.current = ApiService.subscribeToProgress(
-          response.data.task_id,
-          handleProgressUpdate,
-          handleConversionComplete,
-          handleConversionError
-        );
+      console.log("[Frontend] API response:", response);
+
+      // Extract task_id from response (handle both formats)
+      const taskId = response.task_id || response.data?.task_id;
+      
+      if (!taskId) {
+        throw new Error("No task ID returned from API");
       }
+
+      console.log("[Frontend] Task ID received:", taskId);
+      setProgressStatus("processing");
+
+      // Subscribe to progress updates via /stream endpoint
+      unsubscribeRef.current = ApiService.subscribeToProgress(
+        taskId,
+        handleProgressUpdate,
+        handleConversionComplete,
+        handleConversionError
+      );
     } catch (error) {
       console.error("Conversion error:", error);
       let errorMessage = "Failed to start conversion";
@@ -106,6 +196,7 @@ export default function Home() {
 
       showMessage(errorMessage, "error");
       setIsConverting(false);
+      setProgressStatus("error");
     }
   };
 
@@ -190,6 +281,28 @@ export default function Home() {
               </div>
             )}
 
+            {isConverting && progressDetails && (
+              <div className="progress-details">
+                <div className="progress-status-badge">
+                  {progressStatus === "processing" && (
+                    <>
+                      <div className="spinner-small"></div>
+                      <span>Processing...</span>
+                    </>
+                  )}
+                  {progressStatus === "initializing" && (
+                    <>
+                      <div className="spinner-small"></div>
+                      <span>Initializing...</span>
+                    </>
+                  )}
+                </div>
+                {progressDetails.message && (
+                  <p className="progress-message">{progressDetails.message}</p>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
               className="convert-button"
@@ -212,6 +325,90 @@ export default function Home() {
                 }`}
               >
                 {message.replace(/^(error:|success:)\s*/, "")}
+              </div>
+            )}
+
+            {conversionResult && (
+              <div className="download-card">
+                <div className="download-card-header">
+                  <svg
+                    className="success-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div>
+                    <h3>Conversion Complete!</h3>
+                    <p>Your PDF is ready to download</p>
+                  </div>
+                </div>
+
+                <div className="download-card-details">
+                  <div className="detail-item">
+                    <span className="detail-label">Title:</span>
+                    <span className="detail-value">
+                      {conversionResult.title || "YouTube Video"}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">File:</span>
+                    <span className="detail-value">
+                      {conversionResult.filename}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Status:</span>
+                    <span className="detail-value success-text">
+                      ✓ Completed
+                    </span>
+                  </div>
+                </div>
+
+                <div className="download-card-actions">
+                  <button
+                    className="download-button"
+                    onClick={handleDownloadPdf}
+                    disabled={isDownloading}
+                  >
+                    {isDownloading ? (
+                      <>
+                        <div className="spinner-small"></div>
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="download-icon"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                          />
+                        </svg>
+                        <span>Download PDF</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    className="reset-button"
+                    onClick={resetForm}
+                    disabled={isDownloading}
+                  >
+                    Convert Another Video
+                  </button>
+                </div>
               </div>
             )}
           </form>
