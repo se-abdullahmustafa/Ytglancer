@@ -22,20 +22,32 @@ The application uses different API endpoints based on the environment:
 
 - **Local**: `http://localhost:8000` (set `NEXT_PUBLIC_APP_ENV=local`)
 - **Staging**: `https://staging.api.rajag.site` (set `NEXT_PUBLIC_APP_ENV=staging`)
-- **Production**: `https://api.rajag.site` (set `NEXT_PUBLIC_APP_ENV=production`)
+- **Production**: `http://api.rajag.site` (set `NEXT_PUBLIC_APP_ENV=production`)
 
 ### Environment Files
 
-- `.env.example` - Template file (committed to git)
-- `.env.local` - Local development (ignored by git)
-- `.env.staging` - Staging environment (committed to git)
-- `.env.production` - Production environment (committed to git)
+- `.env.example` - Template file (committed to git) - **Use this as your template**
+- `.env.local` - Local development (ignored by git) - **Do not commit**
 
 ### Setup Instructions
 
 1. Copy `.env.example` to `.env.local` for local development
 2. Set `NEXT_PUBLIC_APP_ENV=local` in `.env.local`
-3. The application will automatically use the correct API URL based on the environment
+3. Set `NEXT_PUBLIC_DEMO_MODE=false` to use real backend API
+4. The application will automatically use the correct API URL based on the environment
+
+### Environment Variables
+
+```bash
+# Application environment
+NEXT_PUBLIC_APP_ENV=local|staging|production
+
+# API URL based on environment
+NEXT_PUBLIC_API_URL=http://localhost:8000|https://staging.api.rajag.site|http://api.rajag.site
+
+# Demo mode (true for testing, false for production)
+NEXT_PUBLIC_DEMO_MODE=false
+```
 
 ## Getting Started
 
