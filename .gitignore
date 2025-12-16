@@ -22,6 +22,7 @@
 
 # Environment files - DO NOT commit local overrides
 # .env.example - Template for environment variables (committed to git)
+.env
 
 npm-debug.log*
 yarn-debug.log*
