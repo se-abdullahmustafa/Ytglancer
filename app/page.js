@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import ApiService, { ApiError } from "@/lib/apiService";
 import { getDownloadConfig } from "@/lib/downloadConfig";
+import constants from "@/lib/constants";
 
 export default function Home() {
   const [videoLink, setVideoLink] = useState("");
@@ -30,12 +31,12 @@ export default function Home() {
 
   const handleProgressUpdate = (progress) => {
     console.log("[Frontend] Progress update received:", progress);
-    
+
     // Handle different progress response formats
     const percentage = progress.percentage || progress.progress || 0;
     const status = progress.status || "processing";
     const message = progress.message || `Processing... ${Math.round(percentage)}%`;
-    
+
     setConversionProgress(Math.min(100, percentage));
     setProgressStatus(status);
     setProgressDetails({
@@ -47,10 +48,10 @@ export default function Home() {
   const handleConversionComplete = async (result) => {
     try {
       console.log("[Frontend] Conversion complete:", result);
-      
+
       // Extract PDF filename from various response formats
       const pdfFilename = result.pdf_filename || result.filename || (result.data?.pdf_filename);
-      
+
       if (pdfFilename) {
         // Store result for display
         setConversionResult({
@@ -86,17 +87,17 @@ export default function Home() {
     try {
       const config = downloadConfigRef.current;
       console.log("[Frontend] Opening ad URL:", config.adUrl);
-      
+
       // Open ad in new tab (same window) or current tab
       const target = config.adWindow.openNewTab ? '_blank' : '_self';
-      
+
       window.open(config.adUrl, target);
-      
-      console.log("[Frontend] Ad URL opened successfully", { 
+
+      console.log("[Frontend] Ad URL opened successfully", {
         target,
         isNewTab: config.adWindow.openNewTab,
       });
-      
+
       setAdVisited(true);
       setDownloadStep(2);
       showMessage(config.messages.step2 || "Ad page opened. Click download to proceed.", "success");
@@ -112,19 +113,15 @@ export default function Home() {
     try {
       setIsDownloading(true);
       console.log("[Frontend] Starting PDF download for:", conversionResult.filename);
-      
-      const pdfBlob = await ApiService.downloadPdf(conversionResult.filename);
-      const url = window.URL.createObjectURL(pdfBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = conversionResult.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      console.log("[Frontend] PDF download successful");
-      showMessage("PDF downloaded successfully!", "success");
+
+      // Trigger immediate browser-managed download via direct URL
+      const downloadUrl = `${constants.apiUrl}/download/${encodeURIComponent(
+        conversionResult.filename
+      )}`;
+      window.location.href = downloadUrl;
+
+      console.log("[Frontend] PDF download initiated via browser");
+      showMessage("Download started in your browser.", "success");
     } catch (error) {
       console.error("Download error:", error);
       const errorMessage =
@@ -144,12 +141,12 @@ export default function Home() {
 
   const handleDownloadPdf = async () => {
     const config = downloadConfigRef.current;
-    
+
     // Single-step download if two-step is disabled
     if (!config.enableTwoStepDownload) {
       return handleDownloadStep2();
     }
-    
+
     // Two-step download flow
     if (downloadStep === 1 && !adVisited) {
       return handleDownloadStep1();
@@ -204,20 +201,17 @@ export default function Home() {
 
       console.log("[Frontend] Starting conversion for URL:", videoLink);
 
-      // Convert seconds to minutes (API expects minutes)
-      const timeIntervalMinutes = Math.max(1, Math.round(timeInterval / 60));
-
-      // Start the conversion process
+      // API expects time interval in seconds; pass value directly
       const response = await ApiService.convertVideoToPdf(
         videoLink,
-        timeIntervalMinutes
+        timeInterval
       );
 
       console.log("[Frontend] API response:", response);
 
       // Extract task_id from response (handle both formats)
       const taskId = response.task_id || response.data?.task_id;
-      
+
       if (!taskId) {
         throw new Error("No task ID returned from API");
       }
@@ -305,18 +299,18 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-white px-4 py-10">
       <header className="w-full max-w-2xl" role="banner">
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4 leading-tight">
-            Convert Videos to <span className="text-blue-600">PDF Notes</span>
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 md:p-10 text-center shadow-sm">
+          <h1 className="text-3xl md:text-4xl font-semibold text-slate-900 mb-3 leading-tight">
+            YouTube to <span className="text-blue-600">PDF Notes</span>
           </h1>
 
-          <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
-            Transform any YouTube video into organized, searchable PDF notes instantly. Perfect for students and professionals.
+          <p className="text-sm md:text-base text-slate-600 mb-6 max-w-xl mx-auto">
+            Paste a YouTube link, choose how often to capture frames, and get clean, searchable PDF notes.
           </p>
 
-          <form className="max-w-xl mx-auto flex flex-col gap-6" onSubmit={startConversion}>
+          <form className="max-w-xl mx-auto flex flex-col gap-5" onSubmit={startConversion}>
             {/* YouTube URL Input */}
             <div className="flex flex-col gap-2">
               <label htmlFor="videoUrl" className="text-sm font-semibold text-slate-900 flex items-center gap-2">
@@ -328,7 +322,7 @@ export default function Home() {
               <input
                 id="videoUrl"
                 type="url"
-                className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-base bg-slate-50 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 disabled:opacity-70 transition-all"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm md:text-base bg-slate-50 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:opacity-70 transition-all"
                 placeholder="https://www.youtube.com/watch?v=..."
                 value={videoLink}
                 onChange={(e) => setVideoLink(e.target.value)}
@@ -348,7 +342,7 @@ export default function Home() {
               <input
                 id="captureInterval"
                 type="number"
-                className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-base bg-slate-50 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 disabled:opacity-70 transition-all"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm md:text-base bg-slate-50 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:opacity-70 transition-all"
                 value={timeInterval}
                 onChange={(e) => setTimeInterval(Number(e.target.value))}
                 disabled={isConverting}
@@ -362,13 +356,12 @@ export default function Home() {
               <div className="flex items-center gap-0 my-8 p-6 bg-gradient-to-r from-blue-50 via-slate-50 to-blue-50 rounded-lg border border-slate-200">
                 {/* Step 1 */}
                 <div className="flex items-center gap-3 flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${
-                    isStepCompleted(1) 
-                      ? 'bg-emerald-500 text-white' 
-                      : getStepStatus(1) 
-                      ? 'bg-blue-600 text-white' 
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${isStepCompleted(1)
+                    ? 'bg-emerald-500 text-white'
+                    : getStepStatus(1)
+                      ? 'bg-blue-600 text-white'
                       : 'bg-slate-200 text-slate-600'
-                  }`}>
+                    }`}>
                     {isStepCompleted(1) ? (
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -385,13 +378,12 @@ export default function Home() {
 
                 {/* Step 2 */}
                 <div className="flex items-center gap-3 flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${
-                    isStepCompleted(2) 
-                      ? 'bg-emerald-500 text-white' 
-                      : getStepStatus(2) 
-                      ? 'bg-blue-600 text-white' 
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${isStepCompleted(2)
+                    ? 'bg-emerald-500 text-white'
+                    : getStepStatus(2)
+                      ? 'bg-blue-600 text-white'
                       : 'bg-slate-200 text-slate-600'
-                  }`}>
+                    }`}>
                     {isStepCompleted(2) ? (
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -408,13 +400,12 @@ export default function Home() {
 
                 {/* Step 3 */}
                 <div className="flex items-center gap-3 flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${
-                    isStepCompleted(3) 
-                      ? 'bg-emerald-500 text-white' 
-                      : getStepStatus(3) 
-                      ? 'bg-blue-600 text-white' 
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all ${isStepCompleted(3)
+                    ? 'bg-emerald-500 text-white'
+                    : getStepStatus(3)
+                      ? 'bg-blue-600 text-white'
                       : 'bg-slate-200 text-slate-600'
-                  }`}>
+                    }`}>
                     {isStepCompleted(3) ? (
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -481,11 +472,10 @@ export default function Home() {
 
             {message && (
               <div
-                className={`p-3 rounded-lg text-sm font-medium ${
-                  message.startsWith("error:") 
-                    ? 'bg-red-50 text-red-700 border border-red-200' 
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                }`}
+                className={`p-3 rounded-lg text-sm font-medium ${message.startsWith("error:")
+                  ? 'bg-red-50 text-red-700 border border-red-200'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  }`}
               >
                 {message.replace(/^(error:|success:)\s*/, "")}
               </div>
